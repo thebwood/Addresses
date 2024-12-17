@@ -1,0 +1,14 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/Addresses/Addresses.BusinessLayer/bin/Debug/net9.0
+/Addresses/Addresses.BusinessLayer/obj
+/Addresses/Addresses.ClassLibrary/obj
+/Addresses/Addresses.DatabaseLayer/bin/Debug/net9.0
+/Addresses/Addresses.DatabaseLayer/obj
+/Addresses/Addresses.Domain/bin/Debug/net9.0
+/Addresses/Addresses.Domain/obj
+/Addresses/.vs/Addresses
+/Addresses/Addresses.Api/bin/Debug/net9.0
+/Addresses/Addresses.Api/obj
