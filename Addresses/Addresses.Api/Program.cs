@@ -1,6 +1,7 @@
 using Addresses.Api.Extensions;
 using Addresses.DatabaseLayer.Extensions;
 using Addresses.BusinessLayer.Extensions;
+
 string siteCorsPolicy = "SiteCorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,8 @@ var builder = WebApplication.CreateBuilder(args);
                                                    .AllowCredentials();
                            });
     });
+    builder.Services.AddSwaggerGen();
+
 
     builder.Services
         .AddPresentation()
@@ -24,9 +27,6 @@ var builder = WebApplication.CreateBuilder(args);
         .AddBusinessLayer();
 }
 
-// Add services to the container.
-
-builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -36,7 +36,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
 }
+app.UseCors(siteCorsPolicy);
 
 app.UseAuthorization();
 
