@@ -46,17 +46,15 @@ namespace Addresses.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<ResultModel>> CreateAddress([FromBody] AddAddressRequestDTO requestDTO)
         {
-            ResultModel<AddressDTO> response = new();
+            ResultModel response = new();
             try
             {
 
                 AddressModel address = new (null, requestDTO.Address.StreetAddress, requestDTO.Address.StreetAddress2, requestDTO.Address.City, requestDTO.Address.State, requestDTO.Address.PostalCode);
                 AddressModel createdAddress = await _addressDomainService.CreateAddress(address);
-                AddressDTO createdAddressDTO = new AddressDTO(createdAddress.Id, createdAddress.StreetAddress, createdAddress.StreetAddress2, createdAddress.City, createdAddress.State, createdAddress.PostalCode);
 
                 response.StatusCode = HttpStatusCode.Created;
                 response.Success = true;
-                response.Value = createdAddressDTO;
                 return response;
             }
             catch (Exception ex)
@@ -69,13 +67,14 @@ namespace Addresses.Api.Controllers
         }
 
         [HttpPut]
-        [Route("{id}")]
-        public async Task<ActionResult<ResultModel>> UpdateAddress(Guid id, [FromBody] UpdateAddressRequestDTO requestDTO)
+        public async Task<ActionResult<ResultModel>> UpdateAddress([FromBody] UpdateAddressRequestDTO requestDTO)
         {
             ResultModel<AddressDTO> response = new ();
+
+            
             try
             {
-                AddressModel? address = await _addressDomainService.GetAddressById(id);
+                AddressModel? address = await _addressDomainService.GetAddressById(requestDTO.Address.Id.Value);
                 if (address == null)
                 {
 
