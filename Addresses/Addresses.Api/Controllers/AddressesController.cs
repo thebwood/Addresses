@@ -1,4 +1,5 @@
 ﻿using Addresses.BusinessLayer.Services.Interfaces;
+using Addresses.Domain.Dtos;
 using Addresses.Domain.DTOs;
 using Addresses.Domain.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,19 @@ namespace Addresses.Api.Controllers
             response.AddressList = addressDTOs;
 
             return Ok(response);
+        }
+        [HttpPost]
+        [Route("filter")]
+        public async Task<ActionResult<GetAddressesResponseDTO>> GetAddressesByFilter([FromBody] GetAddressesRequestDTO requestDTO)
+        {
+            GetAddressesResponseDTO response = new GetAddressesResponseDTO();
+            List<AddressModel> addresses = await _addressDomainService.GetAddressesByFilter(requestDTO);
+            List<AddressDTO> addressDTOs = addresses.Select(a => new AddressDTO(a.Id, a.StreetAddress, a.StreetAddress2, a.City, a.State, a.PostalCode)).ToList();
+
+            response.AddressList = addressDTOs;
+
+            return Ok(response);
+
         }
 
         [HttpGet]

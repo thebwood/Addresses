@@ -1,4 +1,5 @@
 ﻿using Addresses.DatabaseLayer.Repositories.Interfaces;
+using Addresses.Domain.Dtos;
 using Addresses.Domain.Models;
 using Addresses.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -33,9 +34,28 @@ namespace Addresses.DatabaseLayer.Repositories
             return address;
         }
 
+        public async Task<List<AddressModel>> GetAddressesByFilter(GetAddressesRequestDTO requestDTO)
+        {
+            var skip = requestDTO.PageNumber * requestDTO.PageSize;
+            var take = requestDTO.PageSize;
+
+            List<AddressModel> addresses = await _addressDbContext.Addresses
+                                                //.Where(a => a.StreetAddress.Contains(requestDTO.SearchText, StringComparison.OrdinalIgnoreCase) ||
+                                                //    a.City.Contains(requestDTO.SearchText, StringComparison.OrdinalIgnoreCase) ||
+                                                //    a.State.Contains(requestDTO.SearchText, StringComparison.OrdinalIgnoreCase))
+                                                .OrderBy(a => a.Id)
+                                                .Skip(skip)
+                                                .Take(take)
+                                                .ToListAsync();
+
+            return addresses;
+        }
+
         public async Task<List<AddressModel>> GetAllAddresses()
         {
-            return await _addressDbContext.Addresses.ToListAsync();
+            return await _addressDbContext.Addresses
+                                                .Take(1000)
+                                                .ToListAsync();
         }
 
         public async Task<AddressModel> UpdateAddress(AddressModel address)

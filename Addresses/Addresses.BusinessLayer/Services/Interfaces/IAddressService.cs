@@ -1,4 +1,5 @@
-﻿using Addresses.Domain.Models;
+﻿using Addresses.Domain.Dtos;
+using Addresses.Domain.Models;
 
 namespace Addresses.BusinessLayer.Services.Interfaces
 {
@@ -6,9 +7,9 @@ namespace Addresses.BusinessLayer.Services.Interfaces
     {
         Task<AddressModel> GetAddressById(Guid id);
         Task<List<AddressModel>> GetAllAddresses();
+        Task<List<AddressModel>> GetAddressesByFilter(GetAddressesRequestDTO requestDTO);
         Task<AddressModel> CreateAddress(AddressModel address);
         Task<AddressModel> UpdateAddress(AddressModel address);
         Task<bool> DeleteAddress(Guid id);
-
     }
 }
