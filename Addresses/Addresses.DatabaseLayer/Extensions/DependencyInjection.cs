@@ -1,6 +1,6 @@
 ﻿using Addresses.DatabaseLayer.Repositories;
 using Addresses.DatabaseLayer.Repositories.Interfaces;
-using Addresses.Infrastructure.Data;
+using Addresses.DatabaseLayer.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

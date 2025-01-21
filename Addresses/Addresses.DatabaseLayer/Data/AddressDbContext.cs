@@ -1,7 +1,7 @@
 ﻿using Addresses.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Addresses.Infrastructure.Data
+namespace Addresses.DatabaseLayer.Data
 {
     public class AddressDbContext : DbContext
     {
