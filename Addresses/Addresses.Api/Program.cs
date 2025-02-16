@@ -1,6 +1,7 @@
 using Addresses.Api.Extensions;
 using Addresses.DatabaseLayer.Extensions;
 using Addresses.BusinessLayer.Extensions;
+using Addresses.Api.Middlewares;
 
 string siteCorsPolicy = "SiteCorsPolicy";
 
@@ -31,6 +32,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Add the GlobalExceptionMiddleware to the request pipeline.
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

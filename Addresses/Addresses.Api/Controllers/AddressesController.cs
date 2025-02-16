@@ -1,4 +1,5 @@
 ﻿using Addresses.BusinessLayer.Services.Interfaces;
+using Addresses.Domain.Common;
 using Addresses.Domain.Dtos;
 using Addresses.Domain.DTOs;
 using Addresses.Domain.Models;
@@ -18,122 +19,141 @@ namespace Addresses.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<GetAddressesResponseDTO>> GetAllAddresses()
+        public async Task<ActionResult<Result<GetAddressesResponseDTO>>> GetAllAddresses()
         {
-            GetAddressesResponseDTO response = new GetAddressesResponseDTO();
-            List<AddressModel> addresses = await _addressDomainService.GetAllAddresses();
-            List<AddressDTO> addressDTOs = addresses.Select(a => new AddressDTO(a.Id, a.StreetAddress, a.StreetAddress2, a.City, a.State, a.PostalCode)).ToList();
+            Result<List<AddressModel>> addresses = await _addressDomainService.GetAllAddresses();
+            List<AddressDTO> addressDTOs = addresses.Value.Select(a => new AddressDTO(a.Id, a.StreetAddress, a.StreetAddress2, a.City, a.State, a.PostalCode)).ToList();
 
-            response.AddressList = addressDTOs;
+            var response = new Result<GetAddressesResponseDTO>
+            {
+                Value = new GetAddressesResponseDTO { AddressList = addressDTOs },
+                StatusCode = HttpStatusCode.OK,
+                Message = "Addresses retrieved successfully"
+            };
 
             return Ok(response);
         }
+
         [HttpPost]
         [Route("filter")]
-        public async Task<ActionResult<GetAddressesResponseDTO>> GetAddressesByFilter([FromBody] GetAddressesRequestDTO requestDTO)
+        public async Task<ActionResult<Result<GetAddressesResponseDTO>>> GetAddressesByFilter([FromBody] GetAddressesRequestDTO requestDTO)
         {
-            GetAddressesResponseDTO response = new GetAddressesResponseDTO();
-            List<AddressModel> addresses = await _addressDomainService.GetAddressesByFilter(requestDTO);
-            List<AddressDTO> addressDTOs = addresses.Select(a => new AddressDTO(a.Id, a.StreetAddress, a.StreetAddress2, a.City, a.State, a.PostalCode)).ToList();
+            Result<List<AddressModel>> addresses = await _addressDomainService.GetAddressesByFilter(requestDTO);
+            List<AddressDTO> addressDTOs = addresses.Value.Select(a => new AddressDTO(a.Id, a.StreetAddress, a.StreetAddress2, a.City, a.State, a.PostalCode)).ToList();
 
-            response.AddressList = addressDTOs;
+            var response = new Result<GetAddressesResponseDTO>
+            {
+                Value = new GetAddressesResponseDTO { AddressList = addressDTOs },
+                StatusCode = HttpStatusCode.OK,
+                Message = "Addresses retrieved successfully"
+            };
 
             return Ok(response);
-
         }
 
         [HttpGet]
         [Route("{id}")]
-        public async Task<ActionResult<GetAddressResponseDTO>> GetAddressById(Guid id)
+        public async Task<ActionResult<Result<GetAddressResponseDTO>>> GetAddressById(Guid id)
         {
-            GetAddressResponseDTO response = new GetAddressResponseDTO();
-            AddressModel? address = await _addressDomainService.GetAddressById(id);
-            if (address == null)
+            Result<AddressModel> address = await _addressDomainService.GetAddressById(id);
+            if (!address.Success)
             {
-                return NotFound();
+                var notFoundResponse = new Result<GetAddressResponseDTO>
+                {
+                    StatusCode = HttpStatusCode.NotFound,
+                    Message = "Address not found",
+                    Errors = address.Errors
+                };
+                return NotFound(notFoundResponse);
             }
-            AddressDTO addressDTO = new AddressDTO(address.Id, address.StreetAddress, address.StreetAddress2, address.City, address.State, address.PostalCode);
-            response.Address = addressDTO;
+
+            AddressDTO addressDTO = new AddressDTO(address.Value.Id, address.Value.StreetAddress, address.Value.StreetAddress2, address.Value.City, address.Value.State, address.Value.PostalCode);
+            var response = new Result<GetAddressResponseDTO>
+            {
+                Value = new GetAddressResponseDTO { Address = addressDTO },
+                StatusCode = HttpStatusCode.OK,
+                Message = "Address retrieved successfully"
+            };
+
             return Ok(response);
         }
 
         [HttpPost]
-        public async Task<ActionResult<ResultModel>> CreateAddress([FromBody] AddAddressRequestDTO requestDTO)
+        public async Task<ActionResult<Result<AddressDTO>>> CreateAddress([FromBody] AddAddressRequestDTO requestDTO)
         {
-            ResultModel response = new();
-            try
-            {
+            AddressModel address = new(null, requestDTO.Address.StreetAddress, requestDTO.Address.StreetAddress2, requestDTO.Address.City, requestDTO.Address.State, requestDTO.Address.PostalCode);
+            Result<AddressModel> createdAddress = await _addressDomainService.CreateAddress(address);
 
-                AddressModel address = new (null, requestDTO.Address.StreetAddress, requestDTO.Address.StreetAddress2, requestDTO.Address.City, requestDTO.Address.State, requestDTO.Address.PostalCode);
-                AddressModel createdAddress = await _addressDomainService.CreateAddress(address);
-
-                response.StatusCode = HttpStatusCode.Created;
-                response.Success = true;
-                return response;
-            }
-            catch (Exception ex)
+            AddressDTO createdAddressDTO = new AddressDTO(createdAddress.Value.Id, createdAddress.Value.StreetAddress, createdAddress.Value.StreetAddress2, createdAddress.Value.City, createdAddress.Value.State, createdAddress.Value.PostalCode);
+            var response = new Result<AddressDTO>
             {
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.Message = ex.Message;
-                response.Success = false;
-                return response;
-            }
+                Value = createdAddressDTO,
+                StatusCode = HttpStatusCode.Created,
+                Message = "Address created successfully"
+            };
+
+            return CreatedAtAction(nameof(GetAddressById), new { id = createdAddressDTO.Id }, response);
         }
 
         [HttpPut]
-        public async Task<ActionResult<ResultModel>> UpdateAddress([FromBody] UpdateAddressRequestDTO requestDTO)
+        public async Task<ActionResult<Result<AddressDTO>>> UpdateAddress([FromBody] UpdateAddressRequestDTO requestDTO)
         {
-            ResultModel<AddressDTO> response = new ();
-
-            
-            try
+            Result<AddressModel> addressResult = await _addressDomainService.GetAddressById(requestDTO.Address.Id.Value);
+            if (!addressResult.Success)
             {
-                AddressModel? address = await _addressDomainService.GetAddressById(requestDTO.Address.Id.Value);
-                if (address == null)
+                var notFoundResponse = new Result<AddressDTO>
                 {
-
-                    response.StatusCode = HttpStatusCode.NotFound;
-                    response.Success = false;
-                    return NotFound(response);
-
-                }
-
-
-                address.StreetAddress = requestDTO.Address.StreetAddress;
-                address.StreetAddress2 = requestDTO.Address.StreetAddress2;
-                address.City = requestDTO.Address.City;
-                address.State = requestDTO.Address.State;
-                address.PostalCode = requestDTO.Address.PostalCode;
-
-                AddressModel updatedAddress = await _addressDomainService.UpdateAddress(address);
-                AddressDTO updatedAddressDTO = new AddressDTO(updatedAddress.Id, updatedAddress.StreetAddress, updatedAddress.StreetAddress2, updatedAddress.City, updatedAddress.State, updatedAddress.PostalCode);
-
-                response.StatusCode = HttpStatusCode.OK;
-                response.Success = true;
-                response.Value = updatedAddressDTO;
-                return Ok(response);
+                    StatusCode = HttpStatusCode.NotFound,
+                    Message = "Address not found",
+                    Errors = addressResult.Errors
+                };
+                return NotFound(notFoundResponse);
             }
-            catch (Exception ex)
+
+            AddressModel address = addressResult.Value;
+            address.StreetAddress = requestDTO.Address.StreetAddress;
+            address.StreetAddress2 = requestDTO.Address.StreetAddress2;
+            address.City = requestDTO.Address.City;
+            address.State = requestDTO.Address.State;
+            address.PostalCode = requestDTO.Address.PostalCode;
+
+            Result<AddressModel> updatedAddress = await _addressDomainService.UpdateAddress(address);
+            AddressDTO updatedAddressDTO = new AddressDTO(updatedAddress.Value.Id, updatedAddress.Value.StreetAddress, updatedAddress.Value.StreetAddress2, updatedAddress.Value.City, updatedAddress.Value.State, updatedAddress.Value.PostalCode);
+
+            var response = new Result<AddressDTO>
             {
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.Message = ex.Message;
-                response.Success = false;
-                return response;
-            }
+                Value = updatedAddressDTO,
+                StatusCode = HttpStatusCode.OK,
+                Message = "Address updated successfully"
+            };
+
+            return Ok(response);
         }
 
         [HttpDelete]
         [Route("{id}")]
-        public async Task<ActionResult> DeleteAddress(Guid id)
+        public async Task<ActionResult<Result>> DeleteAddress(Guid id)
         {
-            AddressModel? address = await _addressDomainService.GetAddressById(id);
-            if (address == null)
+            Result<AddressModel> addressResult = await _addressDomainService.GetAddressById(id);
+            if (!addressResult.Success)
             {
-                return NotFound();
+                var notFoundResponse = new Result
+                {
+                    StatusCode = HttpStatusCode.NotFound,
+                    Message = "Address not found",
+                    Errors = addressResult.Errors
+                };
+                return NotFound(notFoundResponse);
             }
-            await _addressDomainService.DeleteAddress(id);
-            return Ok();
-        }
 
+            Result<bool> deleteResult = await _addressDomainService.DeleteAddress(id);
+            var response = new Result
+            {
+                StatusCode = HttpStatusCode.OK,
+                Message = "Address deleted successfully"
+            };
+
+            return Ok(response);
+        }
     }
 }
