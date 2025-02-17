@@ -2,6 +2,7 @@ using Addresses.Api.Extensions;
 using Addresses.DatabaseLayer.Extensions;
 using Addresses.BusinessLayer.Extensions;
 using Addresses.Api.Middlewares;
+using Serilog;
 
 string siteCorsPolicy = "SiteCorsPolicy";
 
@@ -27,6 +28,15 @@ var builder = WebApplication.CreateBuilder(args);
         .AddDatabaseLayer(builder.Configuration.GetConnectionString("Database"))
         .AddBusinessLayer();
 }
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration.ReadFrom.Configuration(context.Configuration);
+});
+
+builder.Services.AddLogging(loggingBuilder =>
+{
+    loggingBuilder.AddSerilog();
+});
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
