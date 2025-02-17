@@ -23,7 +23,13 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task<bool> DeleteAddress(Guid id)
         {
-            _addressDbContext.Addresses.Remove(new AddressModel(id));
+            AddressModel? address = await GetAddressById(id);
+            if (address == null)
+            {
+                return false; // Address not found
+            }
+
+            _addressDbContext.Addresses.Remove(address);
             await _addressDbContext.SaveChangesAsync();
             return true;
         }

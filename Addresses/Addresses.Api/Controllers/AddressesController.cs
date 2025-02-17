@@ -41,7 +41,7 @@ namespace Addresses.Api.Controllers
             Result<List<AddressModel>> addresses = await _addressDomainService.GetAddressesByFilter(requestDTO);
             List<AddressDTO> addressDTOs = addresses.Value.Select(a => new AddressDTO(a.Id, a.StreetAddress, a.StreetAddress2, a.City, a.State, a.PostalCode)).ToList();
 
-            var response = new Result<GetAddressesResponseDTO>
+            Result<GetAddressesResponseDTO>? response = new Result<GetAddressesResponseDTO>
             {
                 Value = new GetAddressesResponseDTO { AddressList = addressDTOs },
                 StatusCode = HttpStatusCode.OK,
