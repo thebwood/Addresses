@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
 using Addresses.Domain.Common;
+using System.IdentityModel.Tokens.Jwt;
 
 string siteCorsPolicy = "SiteCorsPolicy";
 
@@ -40,20 +41,39 @@ var builder = WebApplication.CreateBuilder(args);
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(options =>
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings.Issuer,
-            ValidAudience = jwtSettings.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(key)
-        };
-    });
+            // Check if the token is blacklisted
+            var token = securityToken as JwtSecurityToken;
+            if (token != null)
+            {
+                var tokenId = token.RawData;
+                // Implement logic to check if the token is blacklisted
+                return !IsTokenBlacklisted(tokenId);
+            }
+            return false;
+        }
+    };
+});
+
 }
+
+bool IsTokenBlacklisted(string tokenId)
+{
+    throw new NotImplementedException();
+}
+
 builder.Host.UseSerilog((context, services, configuration) =>
 {
     configuration.ReadFrom.Configuration(context.Configuration);

@@ -65,6 +65,23 @@ namespace Addresses.DatabaseLayer.Repositories
             await _context.SaveChangesAsync();
         }
 
+        public async Task AddTokenToBlacklistAsync(string token, DateTime expirationDate)
+        {
+            var blacklistedToken = new TokenBlacklistModel
+            {
+                Token = token,
+                ExpirationDate = expirationDate
+            };
+
+            await _context.TokenBlacklist.AddAsync(blacklistedToken);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> IsTokenBlacklistedAsync(string token)
+        {
+            return await _context.TokenBlacklist.AnyAsync(t => t.Token == token);
+        }
+
         private bool VerifyPasswordHash(string password, string storedHash)
         {
             // Implement your password hash verification logic here

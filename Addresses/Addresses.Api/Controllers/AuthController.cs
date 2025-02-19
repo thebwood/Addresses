@@ -2,6 +2,9 @@
 using Addresses.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Threading.Tasks;
 
 namespace Addresses.Api.Controllers
 {
@@ -47,5 +50,19 @@ namespace Addresses.Api.Controllers
 
             return Ok(result);
         }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+            if (jwtToken != null)
+            {
+                var expirationDate = jwtToken.ValidTo;
+                await _authService.AddTokenToBlacklist(token, expirationDate);
+            }
+            return Ok(new { message = "Logout successful" });
+        }
     }
 }
+

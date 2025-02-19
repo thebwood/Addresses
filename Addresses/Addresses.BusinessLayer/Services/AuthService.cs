@@ -111,5 +111,10 @@ namespace Addresses.BusinessLayer.Services
             // return BCrypt.Net.BCrypt.HashPassword(password);
             return password; // Placeholder, replace with actual hash logic
         }
+
+        public async Task AddTokenToBlacklist(string token, DateTime expirationDate)
+        {
+            await _authRepository.AddTokenToBlacklistAsync(token, expirationDate);
+        }
     }
 }

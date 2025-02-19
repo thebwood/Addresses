@@ -10,5 +10,7 @@ namespace Addresses.DatabaseLayer.Repositories.Interfaces
         Task UpdateUserAsync(UserModel user);
         Task<UserModel> GetUserByIdAsync(Guid userId);
         Task AssignRoleToUserAsync(Guid userId, Guid roleId);
+        Task AddTokenToBlacklistAsync(string token, DateTime expirationDate);
+        Task<bool> IsTokenBlacklistedAsync(string token);
     }
 }

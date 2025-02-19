@@ -8,10 +8,12 @@ namespace Addresses.DatabaseLayer.Data
         public AddressDbContext(DbContextOptions<AddressDbContext> options) : base(options)
         {
         }
+
         public DbSet<AddressModel> Addresses { get; set; }
         public DbSet<UserModel> Users { get; set; }
         public DbSet<RoleModel> Roles { get; set; }
         public DbSet<UserRoleModel> UserRoles { get; set; }
+        public DbSet<TokenBlacklistModel> TokenBlacklist { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +43,12 @@ namespace Addresses.DatabaseLayer.Data
                 entity.HasOne(e => e.Role)
                       .WithMany(r => r.UserRoles)
                       .HasForeignKey(e => e.RoleId);
+            });
+
+            modelBuilder.Entity<TokenBlacklistModel>(entity =>
+            {
+                entity.HasKey(e => e.Token);
+                entity.Property(e => e.Token).HasMaxLength(450);
             });
         }
     }
