@@ -2,7 +2,11 @@ using Addresses.Api.Extensions;
 using Addresses.DatabaseLayer.Extensions;
 using Addresses.BusinessLayer.Extensions;
 using Addresses.Api.Middlewares;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
+using Addresses.Domain.Common;
 
 string siteCorsPolicy = "SiteCorsPolicy";
 
@@ -22,11 +26,33 @@ var builder = WebApplication.CreateBuilder(args);
     });
     builder.Services.AddSwaggerGen();
 
-
     builder.Services
         .AddPresentation()
         .AddDatabaseLayer(builder.Configuration.GetConnectionString("Database"))
         .AddBusinessLayer();
+
+    // Add JWT Authentication
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+    var key = Encoding.ASCII.GetBytes(jwtSettings.Secret);
+
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(key)
+        };
+    });
 }
 builder.Host.UseSerilog((context, services, configuration) =>
 {
@@ -38,24 +64,21 @@ builder.Services.AddLogging(loggingBuilder =>
     loggingBuilder.AddSerilog();
 });
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Add the GlobalExceptionMiddleware to the request pipeline.
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
-
 }
 app.UseCors(siteCorsPolicy);
 
+app.UseAuthentication(); // Ensure this is before UseAuthorization
 app.UseAuthorization();
 
 app.MapControllers();

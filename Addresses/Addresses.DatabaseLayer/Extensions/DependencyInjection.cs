@@ -10,14 +10,17 @@ namespace Addresses.DatabaseLayer.Extensions
     {
         public static IServiceCollection AddDatabaseLayer(this IServiceCollection services, string connectionString)
         {
+            // Register repositories
             services.AddTransient<IAddressRepository, AddressRepository>();
+            services.AddTransient<IAuthRepository, AuthRepository>();
 
+            // Register DbContext
             services.AddDbContext<AddressDbContext>(options =>
             {
                 options.UseSqlServer(connectionString);
             });
-            return services;
 
+            return services;
         }
     }
 }

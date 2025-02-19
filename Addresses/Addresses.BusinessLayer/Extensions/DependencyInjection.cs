@@ -8,6 +8,7 @@ namespace Addresses.BusinessLayer.Extensions
     {
         public static IServiceCollection AddBusinessLayer(this IServiceCollection services)
         {
+            services.AddScoped<IAuthService, AuthService>();
             services.AddTransient<IAddressService, AddressService>();
             return services;
         }
