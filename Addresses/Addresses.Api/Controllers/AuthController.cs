@@ -1,10 +1,14 @@
 ﻿using Addresses.BusinessLayer.Services.Interfaces;
+using Addresses.Domain.Common;
+using Addresses.Domain.Dtos;
 using Addresses.Domain.Models;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using System;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Threading.Tasks;
+using System.Net;
+using System.Security.Claims;
+using System.Text;
 
 namespace Addresses.Api.Controllers
 {
@@ -13,30 +17,47 @@ namespace Addresses.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IConfiguration configuration)
         {
             _authService = authService;
+            _configuration = configuration;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginModel loginModel)
         {
-            var result = await _authService.Authenticate(loginModel.Username, loginModel.Password);
+            var result = await _authService.Authenticate(loginModel.UserName, loginModel.Password);
 
             if (!result.Success)
             {
                 return StatusCode((int)result.StatusCode, result);
             }
-
             return Ok(result);
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserModel userModel)
+        public async Task<IActionResult> Register([FromBody] UserRegisterDTO registerDto)
         {
-            var result = await _authService.RegisterUser(userModel);
-            return StatusCode((int)result.StatusCode, result);
+            Result? result = await _authService.RegisterUser(registerDto);
+
+            if (!result.Success)
+            {
+                var errors = result.Errors.Select(e => new Error(e.Code, e.Name )).ToList();
+                return BadRequest(new Result
+                {
+                    StatusCode = HttpStatusCode.BadRequest,
+                    Message = "User registration failed",
+                    Errors = errors
+                });
+            }
+
+            return Ok(new Result
+            {
+                StatusCode = HttpStatusCode.OK,
+                Message = "User registered successfully"
+            });
         }
 
         [HttpGet("{userId}")]
@@ -61,7 +82,11 @@ namespace Addresses.Api.Controllers
                 var expirationDate = jwtToken.ValidTo;
                 await _authService.AddTokenToBlacklist(token, expirationDate);
             }
-            return Ok(new { message = "Logout successful" });
+            return Ok(new Result
+            {
+                StatusCode = HttpStatusCode.OK,
+                Message = "Logout successful"
+            });
         }
     }
 }

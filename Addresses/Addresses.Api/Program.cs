@@ -8,6 +8,8 @@ using Serilog;
 using System.Text;
 using Addresses.Domain.Common;
 using System.IdentityModel.Tokens.Jwt;
+using Addresses.DatabaseLayer.Repositories.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 string siteCorsPolicy = "SiteCorsPolicy";
 
@@ -32,6 +34,9 @@ var builder = WebApplication.CreateBuilder(args);
         .AddDatabaseLayer(builder.Configuration.GetConnectionString("Database"))
         .AddBusinessLayer();
 
+    // Register IHttpContextAccessor
+    builder.Services.AddHttpContextAccessor();
+
     // Add JWT Authentication
     var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
     var key = Encoding.ASCII.GetBytes(jwtSettings.Secret);
@@ -41,37 +46,19 @@ var builder = WebApplication.CreateBuilder(args);
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings.Issuer,
-        ValidAudience = jwtSettings.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            // Check if the token is blacklisted
-            var token = securityToken as JwtSecurityToken;
-            if (token != null)
-            {
-                var tokenId = token.RawData;
-                // Implement logic to check if the token is blacklisted
-                return !IsTokenBlacklisted(tokenId);
-            }
-            return false;
-        }
-    };
-});
-
-}
-
-bool IsTokenBlacklisted(string tokenId)
-{
-    throw new NotImplementedException();
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(key)
+        };
+    });
 }
 
 builder.Host.UseSerilog((context, services, configuration) =>

@@ -21,7 +21,7 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task<UserModel> GetUserByUsernameAsync(string username)
         {
-            return await _context.Users.SingleOrDefaultAsync(u => u.Username == username);
+            return await _context.Users.SingleOrDefaultAsync(u => u.UserName == username);
         }
 
         public async Task<bool> ValidateUserCredentialsAsync(string username, string password)
@@ -55,7 +55,7 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task AssignRoleToUserAsync(Guid userId, Guid roleId)
         {
-            var userRole = new UserRoleModel
+            UserRoleModel? userRole = new UserRoleModel
             {
                 UserId = userId,
                 RoleId = roleId

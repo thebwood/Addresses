@@ -7,6 +7,7 @@ using Addresses.DatabaseLayer.Repositories.Interfaces;
 using Addresses.Domain.Common;
 using Addresses.Domain.Dtos;
 using Addresses.Domain.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -15,18 +16,20 @@ namespace Addresses.BusinessLayer.Services
     public class AuthService : IAuthService
     {
         private readonly IConfiguration _configuration;
+        private readonly UserManager<UserModel> _userManager;
         private readonly IAuthRepository _authRepository;
 
-        public AuthService(IConfiguration configuration, IAuthRepository authRepository)
+        public AuthService(IConfiguration configuration, UserManager<UserModel> userManager, IAuthRepository authRepository)
         {
             _configuration = configuration;
+            _userManager = userManager;
             _authRepository = authRepository;
         }
 
         public async Task<Result<string>> Authenticate(string username, string password)
         {
-            var user = await _authRepository.GetUserByUsernameAsync(username);
-            if (user == null || !await _authRepository.ValidateUserCredentialsAsync(username, password))
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null || !await _userManager.CheckPasswordAsync(user, password))
             {
                 return new Result<string>
                 {
@@ -36,29 +39,51 @@ namespace Addresses.BusinessLayer.Services
                 };
             }
 
-            // Generate JWT token
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, user.Username) }),
+                Subject = new ClaimsIdentity(new Claim[]
+                {
+                        new Claim(ClaimTypes.Name, user.UserName),
+                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+                }),
                 Expires = DateTime.UtcNow.AddHours(1),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
+            var tokenString = tokenHandler.WriteToken(token);
+
             return new Result<string>
             {
                 StatusCode = HttpStatusCode.OK,
-                Value = tokenHandler.WriteToken(token),
-                Message = "Authentication successful"
+                Message = "Login successful",
+                Value = tokenString
             };
         }
 
-        public async Task<Result> RegisterUser(UserModel user)
+        public async Task<Result> RegisterUser(UserRegisterDTO registerDTO)
         {
-            // Hash the password before saving (implement your own hashing logic)
-            user.PasswordHash = HashPassword(user.PasswordHash);
-            await _authRepository.CreateUserAsync(user);
+            var user = new UserModel
+            {
+                UserName = registerDTO.UserName,
+                Email = registerDTO.Email,
+                FirstName = registerDTO.FirstName,
+                LastName = registerDTO.LastName
+            };
+
+            var result = await _userManager.CreateAsync(user, registerDTO.Password);
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => new Error(e.Code, e.Description)).ToList();
+                return new Result
+                {
+                    StatusCode = HttpStatusCode.BadRequest,
+                    Message = "User registration failed",
+                    Errors = errors
+                };
+            }
+
             return new Result
             {
                 StatusCode = HttpStatusCode.Created,
@@ -66,12 +91,12 @@ namespace Addresses.BusinessLayer.Services
             };
         }
 
-        public async Task<Result<UserDto>> GetUserById(Guid userId)
+        public async Task<Result<UserDTO>> GetUserById(Guid userId)
         {
-            var user = await _authRepository.GetUserByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
             {
-                return new Result<UserDto>
+                return new Result<UserDTO>
                 {
                     StatusCode = HttpStatusCode.NotFound,
                     Message = "User not found",
@@ -79,13 +104,13 @@ namespace Addresses.BusinessLayer.Services
                 };
             }
 
-            return new Result<UserDto>
+            return new Result<UserDTO>
             {
                 StatusCode = HttpStatusCode.OK,
-                Value = new UserDto
+                Value = new UserDTO
                 {
                     Id = user.Id,
-                    Username = user.Username,
+                    UserName = user.UserName,
                     Email = user.Email,
                     FirstName = user.FirstName,
                     LastName = user.LastName
@@ -102,14 +127,6 @@ namespace Addresses.BusinessLayer.Services
                 StatusCode = HttpStatusCode.OK,
                 Message = "Role assigned to user successfully"
             };
-        }
-
-        private string HashPassword(string password)
-        {
-            // Implement your password hashing logic here
-            // For example, using BCrypt:
-            // return BCrypt.Net.BCrypt.HashPassword(password);
-            return password; // Placeholder, replace with actual hash logic
         }
 
         public async Task AddTokenToBlacklist(string token, DateTime expirationDate)

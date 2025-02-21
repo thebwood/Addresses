@@ -1,8 +1,11 @@
-﻿using Addresses.DatabaseLayer.Repositories;
+﻿using Addresses.DatabaseLayer.Data;
+using Addresses.DatabaseLayer.Repositories;
 using Addresses.DatabaseLayer.Repositories.Interfaces;
-using Addresses.DatabaseLayer.Data;
+using Addresses.Domain.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+
 
 namespace Addresses.DatabaseLayer.Extensions
 {
@@ -19,6 +22,18 @@ namespace Addresses.DatabaseLayer.Extensions
             {
                 options.UseSqlServer(connectionString);
             });
+
+            // Register Identity services using AddIdentityCore
+            services.AddIdentityCore<UserModel>(options =>
+            {
+                // Configure Identity options here if needed
+            })
+            .AddRoles<RoleModel>()
+            .AddEntityFrameworkStores<AddressDbContext>()
+            .AddDefaultTokenProviders();
+
+            // Add SignInManager
+            services.AddScoped<SignInManager<UserModel>>();
 
             return services;
         }

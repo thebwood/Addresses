@@ -1,9 +1,9 @@
-﻿namespace Addresses.Domain.Models
+﻿using Microsoft.AspNetCore.Identity;
+
+namespace Addresses.Domain.Models
 {
-    public class RoleModel
+    public class RoleModel : IdentityRole<Guid>
     {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-        public ICollection<UserRoleModel> UserRoles { get; set; }
+        public ICollection<UserRoleModel> UserRoles { get; set; } = new List<UserRoleModel>();
     }
 }
