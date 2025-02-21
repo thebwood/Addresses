@@ -2,18 +2,16 @@
 using Addresses.Domain.Common;
 using Addresses.Domain.Dtos;
 using Addresses.Domain.Models;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using System.Security.Claims;
-using System.Text;
 
 namespace Addresses.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] // Apply authorization to the entire controller
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -26,6 +24,7 @@ namespace Addresses.Api.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous] // Allow anonymous access to the login action
         public async Task<IActionResult> Login([FromBody] UserLoginModel loginModel)
         {
             var result = await _authService.Authenticate(loginModel.UserName, loginModel.Password);
@@ -38,13 +37,14 @@ namespace Addresses.Api.Controllers
         }
 
         [HttpPost("register")]
+        [AllowAnonymous] // Allow anonymous access to the register action
         public async Task<IActionResult> Register([FromBody] UserRegisterDTO registerDto)
         {
             Result? result = await _authService.RegisterUser(registerDto);
 
             if (!result.Success)
             {
-                var errors = result.Errors.Select(e => new Error(e.Code, e.Name )).ToList();
+                var errors = result.Errors.Select(e => new Error(e.Code, e.Name)).ToList();
                 return BadRequest(new Result
                 {
                     StatusCode = HttpStatusCode.BadRequest,

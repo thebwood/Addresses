@@ -2,11 +2,6 @@
 using Addresses.DatabaseLayer.Repositories.Interfaces;
 using Addresses.Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Addresses.DatabaseLayer.Repositories
 {
@@ -55,7 +50,7 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task AssignRoleToUserAsync(Guid userId, Guid roleId)
         {
-            UserRoleModel? userRole = new UserRoleModel
+            UserRoleModel userRole = new UserRoleModel
             {
                 UserId = userId,
                 RoleId = roleId
@@ -88,6 +83,31 @@ namespace Addresses.DatabaseLayer.Repositories
             // For example, using BCrypt:
             // return BCrypt.Net.BCrypt.Verify(password, storedHash);
             return password == storedHash; // Placeholder, replace with actual hash verification
+        }
+
+        public async Task StoreTokenAsync(Guid userId, string tokenString, DateTime expirationDate)
+        {
+            var userToken = new UserTokenModel
+            {
+                UserId = userId,
+                LoginProvider = "Bearer",
+                Name = "JWT",
+                Token = tokenString,
+                ExpirationDate = expirationDate
+            };
+
+            await _context.UserTokens.AddAsync(userToken);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<string> GetTokenByUserIdAsync(Guid userId)
+        {
+            var userToken = await _context.UserTokens
+                .Where(ut => ut.UserId == userId && ut.ExpirationDate > DateTime.UtcNow)
+                .OrderByDescending(ut => ut.ExpirationDate)
+                .FirstOrDefaultAsync();
+
+            return userToken?.Token;
         }
     }
 }

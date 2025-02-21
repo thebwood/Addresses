@@ -1,21 +1,18 @@
 using Addresses.Api.Extensions;
-using Addresses.DatabaseLayer.Extensions;
-using Addresses.BusinessLayer.Extensions;
 using Addresses.Api.Middlewares;
+using Addresses.BusinessLayer.Extensions;
+using Addresses.DatabaseLayer.Extensions;
+using Addresses.Domain.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
-using Addresses.Domain.Common;
-using System.IdentityModel.Tokens.Jwt;
-using Addresses.DatabaseLayer.Repositories.Interfaces;
-using Microsoft.AspNetCore.Http;
 
 string siteCorsPolicy = "SiteCorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 {
-
     builder.Services.AddCors(options =>
     {
         options.AddPolicy(siteCorsPolicy,
@@ -27,7 +24,34 @@ var builder = WebApplication.CreateBuilder(args);
                                                    .AllowCredentials();
                            });
     });
-    builder.Services.AddSwaggerGen();
+
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "Bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "Please enter a valid token"
+        });
+
+        options.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                new string[] {}
+            }
+        });
+    });
 
     builder.Services
         .AddPresentation()
@@ -59,6 +83,12 @@ var builder = WebApplication.CreateBuilder(args);
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
     });
+
+    // Add Authorization
+    builder.Services.AddAuthorization(options =>
+    {
+        // Add your authorization policies here if needed
+    });
 }
 
 builder.Host.UseSerilog((context, services, configuration) =>
@@ -83,6 +113,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseCors(siteCorsPolicy);
 
 app.UseAuthentication(); // Ensure this is before UseAuthorization

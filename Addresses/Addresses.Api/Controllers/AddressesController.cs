@@ -3,6 +3,7 @@ using Addresses.Domain.Common;
 using Addresses.Domain.Dtos;
 using Addresses.Domain.DTOs;
 using Addresses.Domain.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -10,6 +11,7 @@ namespace Addresses.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] // Apply authorization to the entire controller
     public class AddressesController : ControllerBase
     {
         private readonly IAddressService _addressDomainService;

@@ -1,4 +1,5 @@
 ﻿using Addresses.Domain.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,12 +7,11 @@ namespace Addresses.DatabaseLayer.Data
 {
     public class AddressDbContext : IdentityDbContext<UserModel, RoleModel, Guid>
     {
-        public AddressDbContext(DbContextOptions<AddressDbContext> options) : base(options)
-        {
-        }
+        public AddressDbContext(DbContextOptions<AddressDbContext> options) : base(options) { }
 
         public DbSet<AddressModel> Addresses { get; set; }
         public DbSet<TokenBlacklistModel> TokenBlacklist { get; set; }
+        public DbSet<UserTokenModel> UserTokens { get; set; } // Add this line
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -46,6 +46,14 @@ namespace Addresses.DatabaseLayer.Data
             {
                 entity.HasKey(e => e.Token);
                 entity.Property(e => e.Token).HasMaxLength(450);
+            });
+
+
+            // Additional configuration for UserTokenModel if needed
+            modelBuilder.Entity<UserTokenModel>(entity =>
+            {
+                entity.Property(e => e.Token).IsRequired();
+                entity.Property(e => e.ExpirationDate).IsRequired();
             });
         }
     }
