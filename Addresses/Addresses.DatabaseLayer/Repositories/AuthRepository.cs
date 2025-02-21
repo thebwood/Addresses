@@ -87,18 +87,34 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task StoreTokenAsync(Guid userId, string tokenString, DateTime expirationDate)
         {
-            var userToken = new UserTokenModel
-            {
-                UserId = userId,
-                LoginProvider = "Bearer",
-                Name = "JWT",
-                Token = tokenString,
-                ExpirationDate = expirationDate
-            };
+            var existingToken = await _context.UserTokens
+                .SingleOrDefaultAsync(ut => ut.UserId == userId && ut.LoginProvider == "Bearer" && ut.Name == "JWT");
 
-            await _context.UserTokens.AddAsync(userToken);
+            if (existingToken != null)
+            {
+                // Update the existing token
+                existingToken.Token = tokenString;
+                existingToken.ExpirationDate = expirationDate;
+                _context.UserTokens.Update(existingToken);
+            }
+            else
+            {
+                // Insert a new token
+                var userToken = new UserTokenModel
+                {
+                    UserId = userId,
+                    LoginProvider = "Bearer",
+                    Name = "JWT",
+                    Token = tokenString,
+                    ExpirationDate = expirationDate
+                };
+
+                await _context.UserTokens.AddAsync(userToken);
+            }
+
             await _context.SaveChangesAsync();
         }
+
 
         public async Task<string> GetTokenByUserIdAsync(Guid userId)
         {

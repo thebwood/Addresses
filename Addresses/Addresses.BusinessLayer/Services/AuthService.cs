@@ -39,28 +39,18 @@ namespace Addresses.BusinessLayer.Services
                 };
             }
 
-            // Check if the user is blacklisted
-            var existingToken = await _authRepository.GetTokenByUserIdAsync(user.Id);
-            if (existingToken != null && await _authRepository.IsTokenBlacklistedAsync(existingToken))
-            {
-                return new Result<string>
-                {
-                    StatusCode = HttpStatusCode.Unauthorized,
-                    Message = "User is blacklisted",
-                    Errors = new List<Error> { new Error("Unauthorized", "User is blacklisted") }
-                };
-            }
-
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[]
                 {
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
                 }),
                 Expires = DateTime.UtcNow.AddHours(1),
+                Issuer = _configuration["JwtSettings:Issuer"],
+                Audience = _configuration["JwtSettings:Audience"],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
