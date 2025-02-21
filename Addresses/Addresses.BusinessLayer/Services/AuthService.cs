@@ -26,10 +26,10 @@ namespace Addresses.BusinessLayer.Services
             _authRepository = authRepository;
         }
 
-        public async Task<Result<string>> Authenticate(string username, string password)
+        public async Task<Result<string>> Authenticate(UserLoginRequestDTO loginDto)
         {
-            var user = await _userManager.FindByNameAsync(username);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, password))
+            UserModel? user = await _userManager.FindByNameAsync(loginDto.UserName);
+            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
             {
                 return new Result<string>
                 {
@@ -39,15 +39,21 @@ namespace Addresses.BusinessLayer.Services
                 };
             }
 
+            var roles = await _userManager.GetRolesAsync(user);
+
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+            };
+
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new Claim[]
-                {
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
-                }),
+                Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddHours(1),
                 Issuer = _configuration["JwtSettings:Issuer"],
                 Audience = _configuration["JwtSettings:Audience"],
