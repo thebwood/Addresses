@@ -10,95 +10,66 @@ namespace Addresses.DatabaseLayer.Repositories
     {
         private readonly AddressDbContext _addressDbContext;
 
-        public Task<AddressModel> CreateAddress(AddressModel address)
+        public AddressRepository(AddressDbContext addressDbContext)
         {
-            throw new NotImplementedException();
+            _addressDbContext = addressDbContext;
         }
 
-        public Task<bool> DeleteAddress(Guid id)
+        public async Task<AddressModel> CreateAddress(AddressModel address)
         {
-            throw new NotImplementedException();
+            _addressDbContext.Addresses.Add(address);
+            await _addressDbContext.SaveChangesAsync();
+            return address;
         }
 
-        public Task<AddressModel?> GetAddressById(Guid id)
+        public async Task<bool> DeleteAddress(Guid id)
         {
-            throw new NotImplementedException();
+            AddressModel? address = await GetAddressById(id);
+            if (address == null)
+            {
+                return false; // Address not found
+            }
+
+            _addressDbContext.Addresses.Remove(address);
+            await _addressDbContext.SaveChangesAsync();
+            return true;
         }
 
-        public Task<List<AddressModel>> GetAddressesByFilter(GetAddressesRequestDTO requestDTO)
+        public async Task<AddressModel?> GetAddressById(Guid id)
         {
-            throw new NotImplementedException();
+            AddressModel? address = await _addressDbContext.Addresses.SingleOrDefaultAsync(x => x.Id == id);
+            return address;
         }
 
-        public Task<List<AddressModel>> GetAllAddresses()
+        public async Task<List<AddressModel>> GetAddressesByFilter(GetAddressesRequestDTO requestDTO)
         {
-            throw new NotImplementedException();
+            var skip = requestDTO.PageNumber * requestDTO.PageSize;
+            var take = requestDTO.PageSize;
+
+            List<AddressModel> addresses = await _addressDbContext.Addresses
+                .Where(a => a.StreetAddress.ToLower().Contains(requestDTO.SearchText.ToLower()) ||
+                            a.City.ToLower().Contains(requestDTO.SearchText.ToLower()) ||
+                            a.State.ToLower().Contains(requestDTO.SearchText.ToLower()))
+                .OrderBy(a => a.Id)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+
+            return addresses;
         }
 
-        public Task<AddressModel> UpdateAddress(AddressModel address)
+        public async Task<List<AddressModel>> GetAllAddresses()
         {
-            throw new NotImplementedException();
+            return await _addressDbContext.Addresses
+                                                .Take(1000)
+                                                .ToListAsync();
         }
-        //public AddressRepository(AddressDbContext addressDbContext)
-        //{
-        //    _addressDbContext = addressDbContext;
-        //}
 
-        //public async Task<AddressModel> CreateAddress(AddressModel address)
-        //{
-        //    _addressDbContext.Addresses.Add(address);
-        //    await _addressDbContext.SaveChangesAsync();
-        //    return address;
-        //}
-
-        //public async Task<bool> DeleteAddress(Guid id)
-        //{
-        //    AddressModel? address = await GetAddressById(id);
-        //    if (address == null)
-        //    {
-        //        return false; // Address not found
-        //    }
-
-        //    _addressDbContext.Addresses.Remove(address);
-        //    await _addressDbContext.SaveChangesAsync();
-        //    return true;
-        //}
-
-        //public async Task<AddressModel?> GetAddressById(Guid id)
-        //{
-        //    AddressModel? address = await _addressDbContext.Addresses.SingleOrDefaultAsync(x => x.Id == id);
-        //    return address;
-        //}
-
-        //public async Task<List<AddressModel>> GetAddressesByFilter(GetAddressesRequestDTO requestDTO)
-        //{
-        //    var skip = requestDTO.PageNumber * requestDTO.PageSize;
-        //    var take = requestDTO.PageSize;
-
-        //    List<AddressModel> addresses = await _addressDbContext.Addresses
-        //        .Where(a => a.StreetAddress.ToLower().Contains(requestDTO.SearchText.ToLower()) ||
-        //                    a.City.ToLower().Contains(requestDTO.SearchText.ToLower()) ||
-        //                    a.State.ToLower().Contains(requestDTO.SearchText.ToLower()))
-        //        .OrderBy(a => a.Id)
-        //        .Skip(skip)
-        //        .Take(take)
-        //        .ToListAsync();
-
-        //    return addresses;
-        //}
-
-        //public async Task<List<AddressModel>> GetAllAddresses()
-        //{
-        //    return await _addressDbContext.Addresses
-        //                                        .Take(1000)
-        //                                        .ToListAsync();
-        //}
-
-        //public async Task<AddressModel> UpdateAddress(AddressModel address)
-        //{
-        //    _addressDbContext.Addresses.Update(address);
-        //    await _addressDbContext.SaveChangesAsync();
-        //    return address;
-        //}
+        public async Task<AddressModel> UpdateAddress(AddressModel address)
+        {
+            _addressDbContext.Addresses.Update(address);
+            await _addressDbContext.SaveChangesAsync();
+            return address;
+        }
     }
 }
