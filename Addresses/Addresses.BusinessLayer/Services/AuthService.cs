@@ -39,31 +39,7 @@ namespace Addresses.BusinessLayer.Services
                 };
             }
 
-            var roles = await _userManager.GetRolesAsync(user);
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
-            };
-
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(1),
-                Issuer = _configuration["JwtSettings:Issuer"],
-                Audience = _configuration["JwtSettings:Audience"],
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            var tokenString = tokenHandler.WriteToken(token);
-
-            // Optionally, store the token in the database
-            await _authRepository.StoreTokenAsync(user.Id, tokenString, tokenDescriptor.Expires.Value);
+            var tokenString = await GenerateJwtToken(user);
 
             return new Result<string>
             {
@@ -143,6 +119,71 @@ namespace Addresses.BusinessLayer.Services
         public async Task AddTokenToBlacklist(string token, DateTime expirationDate)
         {
             await _authRepository.AddTokenToBlacklistAsync(token, expirationDate);
+        }
+
+        public async Task<Result<string>> RefreshToken(string refreshToken)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadToken(refreshToken) as JwtSecurityToken;
+
+            if (jwtToken == null || jwtToken.ValidTo < DateTime.UtcNow)
+            {
+                return new Result<string>
+                {
+                    StatusCode = HttpStatusCode.Unauthorized,
+                    Message = "Invalid or expired refresh token"
+                };
+            }
+
+            var userId = new Guid(jwtToken.Claims.First(c => c.Type == "sub").Value);
+            var newAccessToken = await GenerateJwtToken(userId);
+
+            return new Result<string>
+            {
+                StatusCode = HttpStatusCode.OK,
+                Value = newAccessToken
+            };
+        }
+
+        private async Task<string> GenerateJwtToken(UserModel user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
+            var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+                };
+
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddHours(1),
+                Issuer = _configuration["JwtSettings:Issuer"],
+                Audience = _configuration["JwtSettings:Audience"],
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            var tokenString = tokenHandler.WriteToken(token);
+
+            await _authRepository.StoreTokenAsync(user.Id, tokenString, tokenDescriptor.Expires.Value);
+
+            return tokenString;
+        }
+
+        private async Task<string> GenerateJwtToken(Guid userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                throw new Exception("User not found");
+            }
+
+            return await GenerateJwtToken(user);
         }
     }
 }

@@ -88,6 +88,21 @@ namespace Addresses.Api.Controllers
                 Message = "Logout successful"
             });
         }
+
+        [HttpPost("refresh")]
+        [AllowAnonymous] // Allow anonymous access to the refresh token action
+        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+        {
+            var result = await _authService.RefreshToken(refreshToken);
+
+            if (!result.Success)
+            {
+                return StatusCode((int)result.StatusCode, result);
+            }
+
+            return Ok(result);
+        }
+
     }
 }
 

@@ -10,5 +10,6 @@ namespace Addresses.BusinessLayer.Services.Interfaces
         Task<Result<UserDTO>> GetUserById(Guid userId);
         Task<Result> AssignRoleToUser(Guid userId, Guid roleId);
         Task AddTokenToBlacklist(string token, DateTime expirationDate);
+        Task<Result<string>> RefreshToken(string refreshToken);
     }
 }
