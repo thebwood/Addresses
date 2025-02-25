@@ -131,7 +131,7 @@ namespace Addresses.DatabaseLayer.Repositories
             List<UserRoleModel>? userRoles = await _context.UserRoles
                 .AsNoTracking()
                 .Where(ur => ur.UserId == user.Id)
-                .Include(ur => ur.RoleId)
+                .Include(ur => ur.Role)
                 .ToListAsync()
                 .ConfigureAwait(false);
 
