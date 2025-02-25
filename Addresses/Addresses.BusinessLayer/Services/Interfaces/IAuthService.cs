@@ -5,11 +5,11 @@ namespace Addresses.BusinessLayer.Services.Interfaces
 {
     public interface IAuthService
     {
-        Task<Result<string>> Authenticate(UserLoginRequestDTO login);
+        Task<Result> Authenticate(UserLoginRequestDTO login);
         Task<Result> RegisterUser(UserRegisterDTO user);
         Task<Result<UserDTO>> GetUserById(Guid userId);
         Task<Result> AssignRoleToUser(Guid userId, Guid roleId);
         Task AddTokenToBlacklist(string token, DateTime expirationDate);
-        Task<Result<string>> RefreshToken(string refreshToken);
+        Task<Result> RefreshToken(RefreshUserTokenRequestDTO requestDTO);
     }
 }

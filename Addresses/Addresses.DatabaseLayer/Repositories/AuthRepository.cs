@@ -2,6 +2,7 @@
 using Addresses.DatabaseLayer.Repositories.Interfaces;
 using Addresses.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Addresses.DatabaseLayer.Repositories
 {
@@ -16,36 +17,35 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task<UserModel> GetUserByUsernameAsync(string username)
         {
-            return await _context.Users.SingleOrDefaultAsync(u => u.UserName == username);
+            return await _context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.UserName == username).ConfigureAwait(false);
         }
 
         public async Task<bool> ValidateUserCredentialsAsync(string username, string password)
         {
-            var user = await GetUserByUsernameAsync(username);
+            var user = await GetUserByUsernameAsync(username).ConfigureAwait(false);
             if (user == null)
             {
                 return false;
             }
 
-            // Assuming you have a method to verify the password hash
             return VerifyPasswordHash(password, user.PasswordHash);
         }
 
         public async Task CreateUserAsync(UserModel user)
         {
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
+            await _context.Users.AddAsync(user).ConfigureAwait(false);
+            await _context.SaveChangesAsync().ConfigureAwait(false);
         }
 
         public async Task UpdateUserAsync(UserModel user)
         {
             _context.Users.Update(user);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync().ConfigureAwait(false);
         }
 
         public async Task<UserModel> GetUserByIdAsync(Guid userId)
         {
-            return await _context.Users.FindAsync(userId);
+            return await _context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId).ConfigureAwait(false);
         }
 
         public async Task AssignRoleToUserAsync(Guid userId, Guid roleId)
@@ -56,8 +56,8 @@ namespace Addresses.DatabaseLayer.Repositories
                 RoleId = roleId
             };
 
-            await _context.UserRoles.AddAsync(userRole);
-            await _context.SaveChangesAsync();
+            await _context.UserRoles.AddAsync(userRole).ConfigureAwait(false);
+            await _context.SaveChangesAsync().ConfigureAwait(false);
         }
 
         public async Task AddTokenToBlacklistAsync(string token, DateTime expirationDate)
@@ -68,13 +68,13 @@ namespace Addresses.DatabaseLayer.Repositories
                 ExpirationDate = expirationDate
             };
 
-            await _context.TokenBlacklist.AddAsync(blacklistedToken);
-            await _context.SaveChangesAsync();
+            await _context.TokenBlacklist.AddAsync(blacklistedToken).ConfigureAwait(false);
+            await _context.SaveChangesAsync().ConfigureAwait(false);
         }
 
         public async Task<bool> IsTokenBlacklistedAsync(string token)
         {
-            return await _context.TokenBlacklist.AnyAsync(t => t.Token == token);
+            return await _context.TokenBlacklist.AsNoTracking().AnyAsync(t => t.Token == token).ConfigureAwait(false);
         }
 
         private bool VerifyPasswordHash(string password, string storedHash)
@@ -88,42 +88,59 @@ namespace Addresses.DatabaseLayer.Repositories
         public async Task StoreTokenAsync(Guid userId, string tokenString, DateTime expirationDate)
         {
             var existingToken = await _context.UserTokens
-                .SingleOrDefaultAsync(ut => ut.UserId == userId && ut.LoginProvider == "Bearer" && ut.Name == "JWT");
+                .SingleOrDefaultAsync(ut => ut.UserId == userId && ut.LoginProvider == "Bearer" && ut.Name == "JWT")
+                .ConfigureAwait(false);
 
             if (existingToken != null)
             {
-                // Update the existing token
                 existingToken.Token = tokenString;
                 existingToken.ExpirationDate = expirationDate;
                 _context.UserTokens.Update(existingToken);
             }
             else
             {
-                // Insert a new token
                 var userToken = new UserTokenModel
                 {
                     UserId = userId,
                     LoginProvider = "Bearer",
-                    Name = "JWT",
+                    Name = "RefreshToken",
                     Token = tokenString,
                     ExpirationDate = expirationDate
                 };
 
-                await _context.UserTokens.AddAsync(userToken);
+                await _context.UserTokens.AddAsync(userToken).ConfigureAwait(false);
             }
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync().ConfigureAwait(false);
         }
-
 
         public async Task<string> GetTokenByUserIdAsync(Guid userId)
         {
             var userToken = await _context.UserTokens
+                .AsNoTracking()
                 .Where(ut => ut.UserId == userId && ut.ExpirationDate > DateTime.UtcNow)
                 .OrderByDescending(ut => ut.ExpirationDate)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
 
             return userToken?.Token;
+        }
+
+        public async Task<IEnumerable<ClaimsIdentity?>> GetRolesAsync(UserModel user)
+        {
+            List<UserRoleModel>? userRoles = await _context.UserRoles
+                .AsNoTracking()
+                .Where(ur => ur.UserId == user.Id)
+                .Include(ur => ur.RoleId)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var claimsIdentities = userRoles.Select(ur => new ClaimsIdentity(new[]
+            {
+                    new Claim(ClaimTypes.Role, ur.Role.Name)
+                }));
+
+            return claimsIdentities;
         }
     }
 }

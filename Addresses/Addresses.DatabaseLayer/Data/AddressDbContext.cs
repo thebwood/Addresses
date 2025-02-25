@@ -11,7 +11,9 @@ namespace Addresses.DatabaseLayer.Data
 
         public DbSet<AddressModel> Addresses { get; set; }
         public DbSet<TokenBlacklistModel> TokenBlacklist { get; set; }
-        public DbSet<UserTokenModel> UserTokens { get; set; } // Add this line
+        public DbSet<UserTokenModel> UserTokens { get; set; }
+        public DbSet<UserRoleModel> UserRoles { get; set; }
+        public DbSet<UserModel> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

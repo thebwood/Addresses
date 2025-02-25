@@ -1,4 +1,5 @@
 ﻿using Addresses.Domain.Models;
+using System.Security.Claims;
 
 namespace Addresses.DatabaseLayer.Repositories.Interfaces
 {
@@ -14,5 +15,6 @@ namespace Addresses.DatabaseLayer.Repositories.Interfaces
         Task<bool> IsTokenBlacklistedAsync(string token);
         Task StoreTokenAsync(Guid id, string tokenString, DateTime value);
         Task<string> GetTokenByUserIdAsync(Guid id);
+        Task<IEnumerable<ClaimsIdentity?>> GetRolesAsync(UserModel user);
     }
 }

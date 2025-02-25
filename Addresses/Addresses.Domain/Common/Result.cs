@@ -8,6 +8,7 @@ namespace Addresses.Domain.Common
         public bool Success { get { return Errors.Count == 0; } }
         public string Message { get; set; }
         public string Token { get; set; }
+        public string RefreshToken { get; set; }
         public List<Error> Errors { get; set; } = new();
     }
 

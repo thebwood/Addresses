@@ -27,7 +27,7 @@ namespace Addresses.Api.Controllers
         [AllowAnonymous] // Allow anonymous access to the login action
         public async Task<IActionResult> Login([FromBody] UserLoginRequestDTO loginDto)
         {
-            Result<string>? result = await _authService.Authenticate(loginDto);
+            Result? result = await _authService.Authenticate(loginDto);
 
             if (!result.Success)
             {
@@ -91,9 +91,9 @@ namespace Addresses.Api.Controllers
 
         [HttpPost("refresh")]
         [AllowAnonymous] // Allow anonymous access to the refresh token action
-        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshUserTokenRequestDTO requestDTO)
         {
-            var result = await _authService.RefreshToken(refreshToken);
+            Result? result = await _authService.RefreshToken(requestDTO);
 
             if (!result.Success)
             {

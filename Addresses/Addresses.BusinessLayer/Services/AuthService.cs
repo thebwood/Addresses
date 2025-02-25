@@ -1,75 +1,75 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Net;
-using System.Security.Claims;
-using System.Text;
-using Addresses.BusinessLayer.Services.Interfaces;
+﻿using Addresses.BusinessLayer.Services.Interfaces;
 using Addresses.DatabaseLayer.Repositories.Interfaces;
 using Addresses.Domain.Common;
 using Addresses.Domain.Dtos;
 using Addresses.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using PasswordVerificationResult = Microsoft.AspNet.Identity.PasswordVerificationResult;
 
 namespace Addresses.BusinessLayer.Services
 {
     public class AuthService : IAuthService
     {
         private readonly IConfiguration _configuration;
-        private readonly UserManager<UserModel> _userManager;
         private readonly IAuthRepository _authRepository;
+        private readonly ILogger<AuthService> _logger;
+        private readonly IPasswordHasher<UserModel> _passwordHasher;
 
-        public AuthService(IConfiguration configuration, UserManager<UserModel> userManager, IAuthRepository authRepository)
+        public AuthService(IConfiguration configuration, IAuthRepository authRepository, ILogger<AuthService> logger, IPasswordHasher<UserModel> passwordHasher)
         {
             _configuration = configuration;
-            _userManager = userManager;
             _authRepository = authRepository;
+            _logger = logger;
+            _passwordHasher = passwordHasher;
         }
 
-        public async Task<Result<string>> Authenticate(UserLoginRequestDTO loginDto)
+        public async Task<Result> Authenticate(UserLoginRequestDTO loginDto)
         {
-            UserModel? user = await _userManager.FindByNameAsync(loginDto.UserName);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            UserModel? user = await _authRepository.GetUserByUsernameAsync(loginDto.UserName);
+            if (user == null || !CheckPassword(user, loginDto.Password))
             {
-                return new Result<string>
-                {
-                    StatusCode = HttpStatusCode.Unauthorized,
-                    Message = "Invalid username or password",
-                    Errors = new List<Error> { new Error("Unauthorized", "Invalid username or password") }
-                };
+                _logger.LogWarning("Invalid username or password for user: {UserName}", loginDto.UserName);
+                return CreateErrorResult<string>(HttpStatusCode.Unauthorized, "Invalid username or password");
             }
 
-            var tokenString = await GenerateJwtToken(user);
+            string? tokenString = await GenerateJwtToken(user.Id);
+            string? refreshTokenString = await CreateRefreshToken(user.Id);
+
 
             return new Result<string>
             {
                 StatusCode = HttpStatusCode.OK,
                 Message = "Login successful",
-                Value = tokenString
+                Token = tokenString,
             };
+        }
+
+        private bool CheckPassword(UserModel user, string password)
+        {
+            var result = (PasswordVerificationResult)(int)_passwordHasher.VerifyHashedPassword(user, user.PasswordHash ?? string.Empty, password);
+            return result == PasswordVerificationResult.Success;
         }
 
         public async Task<Result> RegisterUser(UserRegisterDTO registerDTO)
         {
-            var user = new UserModel
+            UserModel user = new UserModel
             {
                 UserName = registerDTO.UserName,
                 Email = registerDTO.Email,
                 FirstName = registerDTO.FirstName,
-                LastName = registerDTO.LastName
+                LastName = registerDTO.LastName,
+                PasswordHash = _passwordHasher.HashPassword(null, registerDTO.Password)
             };
 
-            var result = await _userManager.CreateAsync(user, registerDTO.Password);
-            if (!result.Succeeded)
-            {
-                var errors = result.Errors.Select(e => new Error(e.Code, e.Description)).ToList();
-                return new Result
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Message = "User registration failed",
-                    Errors = errors
-                };
-            }
+            await _authRepository.CreateUserAsync(user);
 
             return new Result
             {
@@ -80,15 +80,11 @@ namespace Addresses.BusinessLayer.Services
 
         public async Task<Result<UserDTO>> GetUserById(Guid userId)
         {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
+            var user = await _authRepository.GetUserByIdAsync(userId);
             if (user == null)
             {
-                return new Result<UserDTO>
-                {
-                    StatusCode = HttpStatusCode.NotFound,
-                    Message = "User not found",
-                    Errors = new List<Error> { new Error("NotFound", "User not found") }
-                };
+                _logger.LogWarning("User not found with ID: {UserId}", userId);
+                return CreateErrorResult<UserDTO>(HttpStatusCode.NotFound, "User not found");
             }
 
             return new Result<UserDTO>
@@ -121,33 +117,62 @@ namespace Addresses.BusinessLayer.Services
             await _authRepository.AddTokenToBlacklistAsync(token, expirationDate);
         }
 
-        public async Task<Result<string>> RefreshToken(string refreshToken)
+        private async Task<string> CreateRefreshToken(Guid userId)
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadToken(refreshToken) as JwtSecurityToken;
+            var newRefreshToken = GenerateRefreshToken();
+            await _authRepository.StoreTokenAsync(userId, newRefreshToken, DateTime.UtcNow.AddDays(7));
 
-            if (jwtToken == null || jwtToken.ValidTo < DateTime.UtcNow)
+            return newRefreshToken;
+        }
+
+
+        public async Task<Result> RefreshToken(RefreshUserTokenRequestDTO requestDTO)
+        {
+            var user = await _authRepository.GetUserByIdAsync(requestDTO.User.Id);
+            if (user == null)
             {
-                return new Result<string>
-                {
-                    StatusCode = HttpStatusCode.Unauthorized,
-                    Message = "Invalid or expired refresh token"
-                };
+                return CreateErrorResult(HttpStatusCode.NotFound, "User not found");
             }
 
-            var userId = new Guid(jwtToken.Claims.First(c => c.Type == "sub").Value);
-            var newAccessToken = await GenerateJwtToken(userId);
+            var existingRefreshToken = await _authRepository.GetTokenByUserIdAsync(user.Id);
+            if (existingRefreshToken != requestDTO.RefreshToken)
+            {
+                return CreateErrorResult(HttpStatusCode.Unauthorized, "Invalid refresh token");
+            }
 
-            return new Result<string>
+            var newRefreshToken = GenerateRefreshToken();
+            await _authRepository.StoreTokenAsync(user.Id, newRefreshToken, DateTime.UtcNow.AddDays(7));
+
+            var newJwtToken = await GenerateJwtToken(user.Id);
+
+            return new Result
             {
                 StatusCode = HttpStatusCode.OK,
-                Value = newAccessToken
+                RefreshToken = newRefreshToken,
+                Token = newJwtToken,
+                Message = "Token refreshed successfully"
             };
         }
 
-        private async Task<string> GenerateJwtToken(UserModel user)
+        private string GenerateRefreshToken()
         {
-            var roles = await _userManager.GetRolesAsync(user);
+            var randomNumber = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomNumber);
+                return Convert.ToBase64String(randomNumber);
+            }
+        }
+
+        private async Task<string> GenerateJwtToken(Guid userId)
+        {
+            var user = await _authRepository.GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                throw new Exception("User not found");
+            }
+
+            var roles = await _authRepository.GetRolesAsync(user);
 
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
@@ -156,8 +181,6 @@ namespace Addresses.BusinessLayer.Services
                     new Claim(ClaimTypes.Name, user.UserName),
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
                 };
-
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -170,20 +193,27 @@ namespace Addresses.BusinessLayer.Services
             var token = tokenHandler.CreateToken(tokenDescriptor);
             var tokenString = tokenHandler.WriteToken(token);
 
-            await _authRepository.StoreTokenAsync(user.Id, tokenString, tokenDescriptor.Expires.Value);
-
             return tokenString;
         }
 
-        private async Task<string> GenerateJwtToken(Guid userId)
+        private Result<T> CreateErrorResult<T>(HttpStatusCode statusCode, string message, List<Error>? errors = null)
         {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null)
+            return new Result<T>
             {
-                throw new Exception("User not found");
-            }
+                StatusCode = statusCode,
+                Message = message,
+                Errors = errors ?? new List<Error> { new Error("Error", message) }
+            };
+        }
 
-            return await GenerateJwtToken(user);
+        private Result CreateErrorResult(HttpStatusCode statusCode, string message, List<Error>? errors = null)
+        {
+            return new Result
+            {
+                StatusCode = statusCode,
+                Message = message,
+                Errors = errors ?? new List<Error> { new Error("Error", message) }
+            };
         }
     }
 }
