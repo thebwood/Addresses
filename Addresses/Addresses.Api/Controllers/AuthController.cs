@@ -27,7 +27,7 @@ namespace Addresses.Api.Controllers
         [AllowAnonymous] // Allow anonymous access to the login action
         public async Task<IActionResult> Login([FromBody] UserLoginRequestDTO loginDto)
         {
-            Result? result = await _authService.Authenticate(loginDto);
+            Result<UserLoginResponseDTO>? result = await _authService.Authenticate(loginDto);
 
             if (!result.Success)
             {

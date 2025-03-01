@@ -2,6 +2,7 @@
 using Addresses.DatabaseLayer.Repositories.Interfaces;
 using Addresses.Domain.Common;
 using Addresses.Domain.Dtos;
+using Addresses.Domain.Mappers;
 using Addresses.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -31,24 +32,29 @@ namespace Addresses.BusinessLayer.Services
             _passwordHasher = passwordHasher;
         }
 
-        public async Task<Result> Authenticate(UserLoginRequestDTO loginDto)
+        public async Task<Result<UserLoginResponseDTO>> Authenticate(UserLoginRequestDTO loginDto)
         {
             UserModel? user = await _authRepository.GetUserByUsernameAsync(loginDto.UserName);
             if (user == null || !CheckPassword(user, loginDto.Password))
             {
                 _logger.LogWarning("Invalid username or password for user: {UserName}", loginDto.UserName);
-                return CreateErrorResult<string>(HttpStatusCode.Unauthorized, "Invalid username or password");
+                return CreateErrorResult<UserLoginResponseDTO>(HttpStatusCode.Unauthorized, "Invalid username or password");
             }
-
+            UserDTO userDTO = UserMapper.MapUserModelToUserDTO(user);
             string? tokenString = await GenerateJwtToken(user.Id);
             string? refreshTokenString = await CreateRefreshToken(user.Id);
 
 
-            return new Result<string>
+            return new Result<UserLoginResponseDTO>
             {
                 StatusCode = HttpStatusCode.OK,
                 Message = "Login successful",
-                Token = tokenString,
+                Value = new UserLoginResponseDTO
+                {
+                    User = userDTO,
+                    Token = tokenString,
+                    RefreshToken = refreshTokenString
+                }
             };
         }
 
@@ -126,30 +132,35 @@ namespace Addresses.BusinessLayer.Services
         }
 
 
-        public async Task<Result> RefreshToken(RefreshUserTokenRequestDTO requestDTO)
+        public async Task<Result<RefreshUserTokenResponseDTO>> RefreshToken(RefreshUserTokenRequestDTO requestDTO)
         {
             var user = await _authRepository.GetUserByIdAsync(requestDTO.User.Id);
             if (user == null)
             {
-                return CreateErrorResult(HttpStatusCode.NotFound, "User not found");
+                return CreateErrorResult<RefreshUserTokenResponseDTO>(HttpStatusCode.NotFound, "User not found");
             }
 
             var existingRefreshToken = await _authRepository.GetTokenByUserIdAsync(user.Id);
             if (existingRefreshToken != requestDTO.RefreshToken)
             {
-                return CreateErrorResult(HttpStatusCode.Unauthorized, "Invalid refresh token");
+                return CreateErrorResult<RefreshUserTokenResponseDTO>(HttpStatusCode.Unauthorized, "Invalid refresh token");
             }
 
+            UserDTO userDTO = UserMapper.MapUserModelToUserDTO(user);
             var newRefreshToken = GenerateRefreshToken();
             await _authRepository.StoreTokenAsync(user.Id, newRefreshToken, DateTime.UtcNow.AddDays(7));
 
             var newJwtToken = await GenerateJwtToken(user.Id);
 
-            return new Result
+            return new Result<RefreshUserTokenResponseDTO>
             {
                 StatusCode = HttpStatusCode.OK,
-                RefreshToken = newRefreshToken,
-                Token = newJwtToken,
+                Value = new RefreshUserTokenResponseDTO
+                {
+                    User = userDTO,
+                    Token = newJwtToken,
+                    RefreshToken = newRefreshToken
+                },
                 Message = "Token refreshed successfully"
             };
         }
