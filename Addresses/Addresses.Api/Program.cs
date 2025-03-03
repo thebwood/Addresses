@@ -72,6 +72,7 @@ var builder = WebApplication.CreateBuilder(args);
     })
     .AddJwtBearer(options =>
     {
+        options.UseSecurityTokenValidators = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,

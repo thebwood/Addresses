@@ -88,7 +88,7 @@ namespace Addresses.DatabaseLayer.Repositories
         public async Task StoreTokenAsync(Guid userId, string tokenString, DateTime expirationDate)
         {
             var existingToken = await _context.UserTokens
-                .SingleOrDefaultAsync(ut => ut.UserId == userId && ut.LoginProvider == "Bearer" && ut.Name == "JWT")
+                .SingleOrDefaultAsync(ut => ut.UserId == userId)
                 .ConfigureAwait(false);
 
             if (existingToken != null)
