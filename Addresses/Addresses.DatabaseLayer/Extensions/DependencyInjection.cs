@@ -16,6 +16,7 @@ namespace Addresses.DatabaseLayer.Extensions
             // Register repositories
             services.AddTransient<IAddressRepository, AddressRepository>();
             services.AddTransient<IAuthRepository, AuthRepository>();
+            services.AddTransient<IAdminRepository, AdminRepository>();
 
             // Register DbContext
             services.AddDbContext<AddressDbContext>(options =>

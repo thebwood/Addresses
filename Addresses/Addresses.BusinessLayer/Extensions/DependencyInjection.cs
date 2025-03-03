@@ -10,6 +10,7 @@ namespace Addresses.BusinessLayer.Extensions
         {
             services.AddScoped<IAuthService, AuthService>();
             services.AddTransient<IAddressService, AddressService>();
+            services.AddTransient<IAdminService, AdminService>();
             return services;
         }
     }
