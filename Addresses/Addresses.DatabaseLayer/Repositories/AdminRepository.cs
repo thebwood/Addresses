@@ -1,7 +1,7 @@
 ﻿using Addresses.DatabaseLayer.Data;
 using Addresses.DatabaseLayer.Repositories.Interfaces;
 using Addresses.Domain.Models;
-using System.Data.Entity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Addresses.DatabaseLayer.Repositories
 {
@@ -16,7 +16,7 @@ namespace Addresses.DatabaseLayer.Repositories
 
         public async Task<List<UserModel>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            return await _context.Users.AsNoTracking().ToListAsync();
         }
     }
 }
