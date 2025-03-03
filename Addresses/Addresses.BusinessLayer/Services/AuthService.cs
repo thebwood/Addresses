@@ -189,14 +189,14 @@ namespace Addresses.BusinessLayer.Services
             var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
             var claims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(ClaimTypes.Name, GetUsersName(user)),
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
                 };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(1),
+                Expires = DateTime.UtcNow.AddMinutes(15),
                 Issuer = _configuration["JwtSettings:Issuer"],
                 Audience = _configuration["JwtSettings:Audience"],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
@@ -205,6 +205,13 @@ namespace Addresses.BusinessLayer.Services
             var tokenString = tokenHandler.WriteToken(token);
 
             return tokenString;
+        }
+
+        private string GetUsersName(UserModel user)
+        {
+            string firstName = user.FirstName ??= string.Empty;
+            string lastName = user.LastName ??= string.Empty;
+            return $"{firstName} {lastName}";
         }
 
         private Result<T> CreateErrorResult<T>(HttpStatusCode statusCode, string message, List<Error>? errors = null)
