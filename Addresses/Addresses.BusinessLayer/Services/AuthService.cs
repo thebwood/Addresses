@@ -187,13 +187,12 @@ namespace Addresses.BusinessLayer.Services
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"]);
             var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, GetUsersName(user)),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Email, user.Email),
-                    new Claim(ClaimTypes.Role, string.Join(",", roles))
-
-                };
+            {
+                new Claim(ClaimTypes.Name, GetUsersName(user)),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, string.Join(",", roles))
+            };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -203,8 +202,10 @@ namespace Addresses.BusinessLayer.Services
                 Audience = _configuration["JwtSettings:Audience"],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
+
             var token = tokenHandler.CreateToken(tokenDescriptor);
             var tokenString = tokenHandler.WriteToken(token);
+
 
             return tokenString;
         }
