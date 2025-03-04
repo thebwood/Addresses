@@ -93,7 +93,7 @@ namespace Addresses.Api.Controllers
         [AllowAnonymous] // Allow anonymous access to the refresh token action
         public async Task<IActionResult> RefreshToken([FromBody] RefreshUserTokenRequestDTO requestDTO)
         {
-            Result? result = await _authService.RefreshToken(requestDTO);
+            Result<RefreshUserTokenResponseDTO>? result = await _authService.RefreshToken(requestDTO);
 
             if (!result.Success)
             {

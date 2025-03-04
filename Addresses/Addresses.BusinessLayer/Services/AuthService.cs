@@ -189,7 +189,10 @@ namespace Addresses.BusinessLayer.Services
             var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, GetUsersName(user)),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Email, user.Email),
+                    new Claim(ClaimTypes.Role, string.Join(",", roles))
+
                 };
 
             var tokenDescriptor = new SecurityTokenDescriptor
